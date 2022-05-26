@@ -1,6 +1,7 @@
 package org.asemanyk.proxy.api.http;
 
 import java.util.Arrays;
+import java.util.Optional;
 import lombok.AllArgsConstructor;
 
 @AllArgsConstructor
@@ -16,9 +17,14 @@ public enum ContentType {
   }
 
   public static ContentType fromValue(String value) {
+    return Optional.ofNullable(fromValueNullable(value))
+        .orElseThrow(() -> new IllegalArgumentException("Unknown/unsupported Content-Type: " + value));
+  }
+
+  public static ContentType fromValueNullable(String value) {
     return Arrays.stream(values())
         .filter(type -> type.value.equals(value))
         .findFirst()
-        .orElseThrow(() -> new IllegalArgumentException("Unknown/unsupported content-type: " + value));
+        .orElse(null);
   }
 }

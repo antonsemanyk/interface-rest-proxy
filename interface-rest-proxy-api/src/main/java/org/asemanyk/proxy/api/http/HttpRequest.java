@@ -9,5 +9,6 @@ public class HttpRequest {
 
   HttpMethod method;
   String url;
+  ContentType contentType;
   Object body;
 }

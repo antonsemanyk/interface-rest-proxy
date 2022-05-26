@@ -1,15 +1,19 @@
 package org.asemanyk.proxy.core;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
+import java.util.Arrays;
+import java.util.List;
+import java.util.Objects;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.ArrayUtils;
 import org.asemanyk.proxy.api.InterfaceAnnotationsProcessor;
 import org.asemanyk.proxy.api.descriptor.ApiDescriptor;
 import org.asemanyk.proxy.api.descriptor.ApiMethod;
 import org.asemanyk.proxy.api.descriptor.ApiParam;
 import org.asemanyk.proxy.api.descriptor.ApiParamType;
+import org.asemanyk.proxy.api.http.ContentType;
 import org.asemanyk.proxy.api.http.HttpClient;
 import org.asemanyk.proxy.api.http.HttpRequest;
 import org.asemanyk.proxy.api.http.HttpResponse;
@@ -23,7 +27,7 @@ public class InterfaceRestProxy<T> implements InvocationHandler {
   private final HttpClient httpClient;
 
   public InterfaceRestProxy(Class<T> interfaceClass, String baseUrl, InterfaceAnnotationsProcessor annotationsProcessor,
-      ObjectMapper objectMapper, HttpClient httpClient) {
+      HttpClient httpClient) {
     this.baseUrl = baseUrl;
     this.httpClient = httpClient;
     this.apiDescriptor = annotationsProcessor.process(interfaceClass);
@@ -33,9 +37,8 @@ public class InterfaceRestProxy<T> implements InvocationHandler {
   @SuppressWarnings("unchecked")
   public static <T> T forInterface(Class<T> interfaceClass, String baseUrl,
       InterfaceAnnotationsProcessor annotationsProcessor,
-      ObjectMapper objectMapper, HttpClient httpClient) {
+      HttpClient httpClient) {
     InterfaceRestProxy<T> handler = new InterfaceRestProxy<>(interfaceClass, baseUrl, annotationsProcessor,
-        objectMapper,
         httpClient);
     return (T) Proxy.newProxyInstance(interfaceClass.getClassLoader(), new Class[]{interfaceClass}, handler);
   }
@@ -57,9 +60,11 @@ public class InterfaceRestProxy<T> implements InvocationHandler {
     apiMethod.getParams().stream()
         .filter(param -> ApiParamType.QUERY.equals(param.getType()))
         .forEach((param) -> urlBuilder.addQueryParameter(param.getName(), args[param.getIdx()].toString()));
+    ContentType contentType = getContentType(apiDescriptor, apiMethod);
     HttpRequest httpRequest = HttpRequest.builder()
         .method(apiMethod.getHttpMethod())
         .url(urlBuilder.toString())
+        .contentType(contentType)
         .body(body)
         .build();
 
@@ -68,5 +73,20 @@ public class InterfaceRestProxy<T> implements InvocationHandler {
       // TODO: log.error(httpResponse.getBody());
     }
     return httpResponse.getBody();
+  }
+
+  private ContentType getContentType(ApiDescriptor apiDescriptor, ApiMethod apiMethod) {
+    List<String> contentTypes = List.of();
+    if (ArrayUtils.isNotEmpty(apiMethod.getConsumes())) {
+      contentTypes = Arrays.asList(apiMethod.getConsumes());
+    } else if (ArrayUtils.isNotEmpty(apiDescriptor.getConsumes())) {
+      contentTypes = Arrays.asList(apiDescriptor.getConsumes());
+    }
+    return contentTypes.stream()
+        .map(ContentType::fromValueNullable)
+        .filter(Objects::nonNull)
+        .sorted()
+        .findFirst()
+        .orElse(ContentType.APPLICATION_JSON);
   }
 }

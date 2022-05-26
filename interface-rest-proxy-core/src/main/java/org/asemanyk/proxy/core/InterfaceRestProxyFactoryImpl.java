@@ -1,14 +1,14 @@
 package org.asemanyk.proxy.core;
 
-import com.fasterxml.jackson.databind.DeserializationFeature;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.ServiceLoader;
 import lombok.NoArgsConstructor;
 import lombok.RequiredArgsConstructor;
 import org.asemanyk.proxy.api.InterfaceAnnotationsProcessor;
 import org.asemanyk.proxy.api.InterfaceRestProxyFactory;
 import org.asemanyk.proxy.api.http.HttpClient;
-import org.asemanyk.proxy.core.http.HttpClientImpl;
+import org.asemanyk.proxy.api.mapper.ObjectMapperFactory;
+import org.asemanyk.proxy.core.http.OkHttpClientImpl;
+import org.asemanyk.proxy.core.mapper.ObjectMapperFactoryImpl;
 
 /**
  * @author Anton Semanyk
@@ -17,19 +17,18 @@ import org.asemanyk.proxy.core.http.HttpClientImpl;
 public class InterfaceRestProxyFactoryImpl implements InterfaceRestProxyFactory {
 
   private final InterfaceAnnotationsProcessor annotationsProcessor;
-  private final ObjectMapper objectMapper;
   private final HttpClient httpClient;
 
   @Override
   public <T> T proxyForInterface(Class<T> interfaceClass, String baseUrl) {
-    return InterfaceRestProxy.forInterface(interfaceClass, baseUrl, annotationsProcessor, objectMapper, httpClient);
+    return InterfaceRestProxy.forInterface(interfaceClass, baseUrl, annotationsProcessor, httpClient);
   }
 
   @NoArgsConstructor
   public static class Builder {
 
     private InterfaceAnnotationsProcessor annotationsProcessor;
-    private ObjectMapper objectMapper;
+    private ObjectMapperFactory objectMapperFactory;
     private HttpClient httpClient;
 
     public Builder annotationProcessor(InterfaceAnnotationsProcessor annotationsProcessor) {
@@ -37,8 +36,8 @@ public class InterfaceRestProxyFactoryImpl implements InterfaceRestProxyFactory 
       return this;
     }
 
-    public Builder objectMapper(ObjectMapper objectMapper) {
-      this.objectMapper = objectMapper;
+    public Builder objectMapperFactory(ObjectMapperFactory objectMapperFactory) {
+      this.objectMapperFactory = objectMapperFactory;
       return this;
     }
 
@@ -53,17 +52,15 @@ public class InterfaceRestProxyFactoryImpl implements InterfaceRestProxyFactory 
             .findFirst()
             .orElseThrow(() -> new IllegalStateException("No InterfaceAnnotationsProcessor implementations found"));
       }
-      if (this.objectMapper == null) {
-        this.objectMapper = new ObjectMapper()
-            .findAndRegisterModules()
-            .disable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES);
+      if (this.objectMapperFactory == null) {
+        this.objectMapperFactory = ObjectMapperFactoryImpl.DEFAULT;
       }
       if (this.httpClient == null) {
-        this.httpClient = new HttpClientImpl.Builder()
-            .objectMapper(objectMapper)
+        this.httpClient = new OkHttpClientImpl.Builder()
+            .objectMapperFactory(objectMapperFactory)
             .build();
       }
-      return new InterfaceRestProxyFactoryImpl(annotationsProcessor, objectMapper, httpClient);
+      return new InterfaceRestProxyFactoryImpl(annotationsProcessor, httpClient);
     }
   }
 }

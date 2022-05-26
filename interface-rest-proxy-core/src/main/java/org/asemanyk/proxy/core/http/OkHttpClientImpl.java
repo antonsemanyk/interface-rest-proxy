@@ -1,29 +1,35 @@
 package org.asemanyk.proxy.core.http;
 
-import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.JavaType;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.type.TypeFactory;
+import java.io.IOException;
 import java.lang.reflect.Type;
+import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import okhttp3.Call;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
 import okhttp3.RequestBody;
 import okhttp3.Response;
+import org.asemanyk.proxy.api.exception.HttpClientException;
+import org.asemanyk.proxy.api.http.ContentType;
 import org.asemanyk.proxy.api.http.HttpClient;
 import org.asemanyk.proxy.api.http.HttpMethod;
 import org.asemanyk.proxy.api.http.HttpRequest;
 import org.asemanyk.proxy.api.http.HttpResponse;
+import org.asemanyk.proxy.api.mapper.ObjectMapperFactory;
+import org.asemanyk.proxy.api.mapper.ObjectReader;
+import org.asemanyk.proxy.api.mapper.ObjectWriter;
+import org.asemanyk.proxy.core.mapper.ObjectMapperFactoryImpl;
 
-@RequiredArgsConstructor
-public class HttpClientImpl implements HttpClient {
+@RequiredArgsConstructor(access = AccessLevel.PRIVATE)
+public class OkHttpClientImpl implements HttpClient {
 
-  private final ObjectMapper objectMapper;
+  private final ObjectMapperFactory objectMapperFactory;
   private final OkHttpClient client;
 
   @Override
-  public HttpResponse execute(HttpRequest request, Type returnType) throws Exception {
+  public HttpResponse execute(HttpRequest request, Type returnType) {
     Request okRequest = buildOkRequest(request);
     Call okCall = client.newCall(okRequest);
     try (Response response = okCall.execute()) {
@@ -39,36 +45,40 @@ public class HttpClientImpl implements HttpClient {
             .code(response.code())
             .build();
       }
+      ObjectReader objectReader = objectMapperFactory.getReader(ContentType.fromValue(response.header("Content-Type")));
       return HttpResponse.builder()
           .code(response.code())
-          .body(objectMapper.readValue(response.body().byteStream(), javaType))
+          .body(objectReader.read(response.body().bytes(), javaType))
           .build();
+    } catch (IOException ex) {
+      throw new HttpClientException(ex);
     }
   }
 
-  private Request buildOkRequest(HttpRequest request) throws Exception {
+  private Request buildOkRequest(HttpRequest request) {
     if (HttpMethod.GET.equals(request.getMethod()) || HttpMethod.HEAD.equals(request.getMethod())) {
       return new Request.Builder()
           .method(request.getMethod().name(), null)
           .url(request.getUrl())
           .build();
     }
-    byte[] body = objectMapper.writeValueAsBytes(request.getBody());
+    ObjectWriter objectWriter = objectMapperFactory.getWriter(request.getContentType());
+    byte[] body = objectWriter.write(request.getBody());
     return new Request.Builder()
         .method(request.getMethod().name(),
             RequestBody.create(body))
         .url(request.getUrl())
-        .addHeader("Content-Type", "application/json")
+        .addHeader("Content-Type", request.getContentType().getValue())
         .build();
   }
 
   public static class Builder {
 
-    private ObjectMapper objectMapper;
+    private ObjectMapperFactory objectMapperFactory;
     private OkHttpClient okHttpClient;
 
-    public Builder objectMapper(ObjectMapper objectMapper) {
-      this.objectMapper = objectMapper;
+    public Builder objectMapperFactory(ObjectMapperFactory objectMapperFactory) {
+      this.objectMapperFactory = objectMapperFactory;
       return this;
     }
 
@@ -78,16 +88,14 @@ public class HttpClientImpl implements HttpClient {
     }
 
     public HttpClient build() {
-      if (this.objectMapper == null) {
-        this.objectMapper = new ObjectMapper()
-            .findAndRegisterModules()
-            .disable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES);
+      if (this.objectMapperFactory == null) {
+        this.objectMapperFactory = ObjectMapperFactoryImpl.DEFAULT;
       }
       if (this.okHttpClient == null) {
         this.okHttpClient = new OkHttpClient.Builder()
             .build();
       }
-      return new HttpClientImpl(objectMapper, okHttpClient);
+      return new OkHttpClientImpl(objectMapperFactory, okHttpClient);
     }
   }
 }
