@@ -13,8 +13,9 @@
     <maven.compiler.source>11</maven.compiler.source>
     <maven.compiler.target>11</maven.compiler.target>
     <lombok.version>1.18.24</lombok.version>
-    <spring.version>5.3.19</spring.version>
-    <jackson-bom.version>2.13.2.1</jackson-bom.version>
+    <spring-boot.version>2.7.0</spring-boot.version>
+    <spring.version>5.3.20</spring.version>
+    <jackson-bom.version>2.13.3</jackson-bom.version>
     <okhttp3.version>4.9.3</okhttp3.version>
     <slf4j.version>1.7.36</slf4j.version>
     <commons-lang3.version>3.12.0</commons-lang3.version>
@@ -32,6 +33,16 @@
       <dependency>
         <groupId>com.fasterxml.jackson.core</groupId>
         <artifactId>jackson-databind</artifactId>
+        <version>${jackson-bom.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>com.fasterxml.jackson.datatype</groupId>
+        <artifactId>jackson-datatype-jdk8</artifactId>
+        <version>${jackson-bom.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>com.fasterxml.jackson.datatype</groupId>
+        <artifactId>jackson-datatype-jsr310</artifactId>
         <version>${jackson-bom.version}</version>
       </dependency>
       <dependency>

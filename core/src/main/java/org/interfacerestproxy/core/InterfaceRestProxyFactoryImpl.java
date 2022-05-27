@@ -8,6 +8,7 @@ import org.interfacerestproxy.api.InterfaceRestProxyFactory;
 import org.interfacerestproxy.api.http.HttpClient;
 import org.interfacerestproxy.api.mapper.ObjectMapperFactory;
 import org.interfacerestproxy.core.http.OkHttpClientImpl;
+import org.interfacerestproxy.core.internal.HttpRequestBuilder;
 import org.interfacerestproxy.core.mapper.ObjectMapperFactoryImpl;
 
 /**
@@ -17,11 +18,13 @@ import org.interfacerestproxy.core.mapper.ObjectMapperFactoryImpl;
 public class InterfaceRestProxyFactoryImpl implements InterfaceRestProxyFactory {
 
   private final InterfaceAnnotationsProcessor annotationsProcessor;
+  private final HttpRequestBuilder httpRequestBuilder;
   private final HttpClient httpClient;
 
   @Override
   public <T> T proxyForInterface(Class<T> interfaceClass, String baseUrl) {
-    return InterfaceRestProxy.forInterface(interfaceClass, baseUrl, annotationsProcessor, httpClient);
+    return InterfaceRestProxy.forInterface(interfaceClass, baseUrl, annotationsProcessor, httpRequestBuilder,
+        httpClient);
   }
 
   @NoArgsConstructor
@@ -60,7 +63,7 @@ public class InterfaceRestProxyFactoryImpl implements InterfaceRestProxyFactory 
             .objectMapperFactory(objectMapperFactory)
             .build();
       }
-      return new InterfaceRestProxyFactoryImpl(annotationsProcessor, httpClient);
+      return new InterfaceRestProxyFactoryImpl(annotationsProcessor, new HttpRequestBuilder(), httpClient);
     }
   }
 }
